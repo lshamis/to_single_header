@@ -15,7 +15,7 @@ gcc_default_includes = [
 ]
 
 gcc_E_str = subprocess.Popen(
-    ["gcc", "-E", "-dD", "-CC"] + sys.argv,
+    ["g++", "-E", "-fdirectives-only", "-CC"] + sys.argv,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
 ).stdout.read()

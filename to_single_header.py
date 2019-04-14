@@ -15,7 +15,7 @@ gcc_default_includes = [
 ]
 
 gcc_E_str = subprocess.Popen(
-    ["g++", "-E", "-fdirectives-only", "-CC"] + sys.argv,
+    ["g++", "-E", "-fdirectives-only", "-dI", "-CC"] + sys.argv,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
 ).stdout.read()
@@ -26,31 +26,15 @@ class Flags:
   SYSTEM_HEADER = "3"
   EXTERN_C = "4"
 
-def print_include(abspath):
-  for prefix in gcc_default_includes:
-    if abspath.startswith(prefix):
-      print("#include <{}>".format(abspath[len(prefix)+1:]))
-      return
-
 in_user_code = False
 for line in gcc_E_str.decode("utf-8").split("\n"):
-  if line == u'# 1 "<built-in>"':
-    in_user_code = False
-    continue
-
   match = re.match("^# \d+ \"(.*)\"([ \d]*)$", line)
 
-  if not match:
+  if match:
+    if match.group(1) == u"<built-in>":
+      in_user_code = False
+    elif match.group(2):
+      in_user_code = Flags.SYSTEM_HEADER not in match.group(2)
+  else:
     if in_user_code:
       print(line)
-    continue
-
-  if not match.group(2):
-    continue
-
-  is_sys_hdr = Flags.SYSTEM_HEADER in match.group(2)
-
-  if in_user_code and is_sys_hdr:
-    print_include(match.group(1))
-
-  in_user_code = not is_sys_hdr

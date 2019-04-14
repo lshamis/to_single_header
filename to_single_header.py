@@ -2,15 +2,15 @@ import re
 import subprocess
 import sys
 
-gcc_default_import_str = subprocess.Popen(
+gcc_default_include_str = subprocess.Popen(
     ["gcc", "-E", "-Wp,-v", "-xc++", "/dev/null"],
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
 ).stderr.read()
 
-gcc_default_imports = [
+gcc_default_includes = [
     line.strip()
-    for line in gcc_default_import_str.decode("utf-8").split("\n")
+    for line in gcc_default_include_str.decode("utf-8").split("\n")
     if line.startswith(" ")
 ]
 
@@ -26,27 +26,27 @@ class Flags:
   SYSTEM_HEADER = "3"
   EXTERN_C = "4"
 
-sys_depth = 0
+def print_include(abspath):
+  for prefix in gcc_default_includes:
+    if abspath.startswith(prefix):
+      print("#include <{}>".format(abspath[len(prefix)+1:]))
+      return
+
 in_user_code = False
 for line in gcc_E_str.decode("utf-8").split("\n"):
-  match = re.match("^# \d+ \"(.*)\"( \d)*$", line)
-  if match:
-    if match.group(2):
-      flags = line.split('"')[2].split()
-      if Flags.ENTER_INCLUDE in flags:
-        sys_depth += 1
-        if Flags.SYSTEM_HEADER in flags and sys_depth == 1:
-          source_path = match.group(1)
-          for imp in gcc_default_imports:
-            if source_path.startswith(imp):
-              inc = match.group(1)[len(imp)+1:]
-              print("#include <{}>".format(inc))
-              break
+  match = re.match("^# \d+ \"(.*)\"([ \d]*)$", line)
 
-      if Flags.LEAVE_INCLUDE in flags:
-        sys_depth -= 1
+  if not match:
+    if in_user_code:
+      print(line)
+    continue
 
-      in_user_code = (Flags.SYSTEM_HEADER not in flags)
+  if not match.group(2):
+    continue
 
-  elif in_user_code:
-    print(line)
+  is_sys_hdr = Flags.SYSTEM_HEADER in match.group(2)
+
+  if in_user_code and is_sys_hdr:
+    print_include(match.group(1))
+
+  in_user_code = not is_sys_hdr

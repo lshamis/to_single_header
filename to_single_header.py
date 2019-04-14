@@ -34,6 +34,10 @@ def print_include(abspath):
 
 in_user_code = False
 for line in gcc_E_str.decode("utf-8").split("\n"):
+  if line == u'# 1 "<built-in>"':
+    in_user_code = False
+    continue
+
   match = re.match("^# \d+ \"(.*)\"([ \d]*)$", line)
 
   if not match:

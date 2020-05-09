@@ -2,23 +2,13 @@ import re
 import subprocess
 import sys
 
-gcc_default_include_str = subprocess.Popen(
-    ["gcc", "-E", "-Wp,-v", "-xc++", "/dev/null"],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-).stderr.read()
-
-gcc_default_includes = [
-    line.strip()
-    for line in gcc_default_include_str.decode("utf-8").split("\n")
-    if line.startswith(" ")
-]
-
 gcc_E_str = subprocess.Popen(
     ["g++", "-E", "-fdirectives-only", "-dI", "-CC"] + sys.argv,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
 ).stdout.read()
+
+gcc_E_lines = gcc_E_str.decode("utf-8").split("\n")
 
 class Flags:
   ENTER_INCLUDE = "1"
@@ -27,7 +17,10 @@ class Flags:
   EXTERN_C = "4"
 
 in_user_code = False
-for line in gcc_E_str.decode("utf-8").split("\n"):
+for i, line in enumerate(gcc_E_lines):
+  if line.strip().startswith("#include") and re.match("^# 1 \".*\" 1$", gcc_E_lines[i+2]):
+    continue
+
   match = re.match("^# \d+ \"(.*)\"([ \d]*)$", line)
 
   if match:
